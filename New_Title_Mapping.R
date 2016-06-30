@@ -2,7 +2,7 @@
 source("dependencies.R")
 
 
-# Internation Higher ED Item Attributes (Singapore and ASIA)
+# New titles data import
 pm_newtitle <- read.xlsx2(file = "C://RProjects/DataSets/2016-2018_Pub_Products.xlsx",
                        sheetIndex = 1,header = TRUE,stringsAsFactors = FALSE)
 
@@ -53,7 +53,7 @@ Mapping_title <-  do.call("rbind",apply( pm_newtitle_ne %>% select(ISBN,TITLE), 
                                           BestMatchPattern,pmm_raw_d1$Title,pmm_raw_d1$ProgramISBN))
 
 
-
+# Fuzzy Matching New Title Authors with Existing Title Authors (First Name, Last Name match)
 WordMatchingBySplit <- function(title_new, titles_old, titles_ISBN) {
   result <- ""
   if(title_new[2] != "" & !is.na(title_new[2]))
@@ -71,8 +71,6 @@ WordMatchingBySplit <- function(title_new, titles_old, titles_ISBN) {
   return(result)  
 }
  
-
-# Fuzzy Matching New Title Authors with Existing Title Authors (First Name, Last Name match)
 Mapping_Author <- do.call("rbind",apply(pm_newtitle_ne %>% select(ISBN,LEAD_AUTHOR) , 1,
                                         WordMatchingBySplit,pmm_raw_d1$LeadContributor,
                                         pmm_raw_d1$ProgramISBN))
@@ -82,37 +80,31 @@ Mapping_Author <- Mapping_Author %>%
   arrange(ISBN_new,ISBN_old)
 
 
-Mapping_joined <- merge(x = Mapping_title, y= Mapping_Author, by = c("ISBN_new", "ISBN_old")) %>%
+Mapping_Title_Author <- merge(x = Mapping_title, y= Mapping_Author, by = c("ISBN_new", "ISBN_old")) %>%
                  arrange(ISBN_new,ISBN_old)
 
 
 
+# pm_newtitle_nomatch <- pm_newtitle_ne[!duplicated(rbind(Mapping_Title_Author,pm_newtitle_ne))
+#                                       [-seq_len(nrow(Mapping_Title_Author))],]
+
+pm_newtitle_nomatch <- pm_newtitle_ne %>% 
+                  left_join(Mapping_Title_Author %>% 
+                              select(ISBN_new) %>% 
+                              distinct() %>% 
+                              mutate(Flag = "Y", ISBN_new = as.character(ISBN_new)),
+                              by = c("ISBN" = "ISBN_new")) %>%
+  filter(is.na(Flag)) %>% select(-Flag)
+
+Mapping_Title_Author %>% saveRDS('C://RProjects/DataSets/derived_data_2/Forecast_v3/Mapping_Title_Author.rds')
+Mapping_Author %>% saveRDS('C://RProjects/DataSets/derived_data_2/Forecast_v3/Mapping_Author.rds')
+Mapping_title %>% saveRDS('C://RProjects/DataSets/derived_data_2/Forecast_v3/Mapping_title.rds')
+
+Mapping_Title_Author %>% write.csv('C://RProjects/DataSets/derived_data_2/Forecast_v3/Mapping_Title_Author.csv')
+
+pm_newtitle_nomatch %>% write.csv('C://RProjects/DataSets/derived_data_2/Forecast_v3/New_titles_Nomatch.csv')
 
 
-
-
-
-
-
-
-
-
-
-
-
-dim(pm_newtitle_ne)
-str(pm_newtitle_ne)
-
-pm_newtitle_d %>% filter(PROGRAM_ISBN == "0072391308")
-pmm_raw_d %>% filter(ProgramISBN == "0072391308")
-
-
-str(pmm_raw_d)
-str(pm_newtitle_d)
-gc()
-
-dim(pm_newtitle)
-str(pm_newtitle)
-colnames(pmm_raw)
+#rm(Mapping_Author,Mapping_title,Mapping_Title_Author)
 
 
